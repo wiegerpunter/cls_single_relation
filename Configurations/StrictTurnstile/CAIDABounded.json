@@ -6,10 +6,10 @@
   "readFolder": "/home/wieger/omnibounded_data/",
   "withDeletes": true,
   "spreadOutDeletes": true,
-  "ramValsMB": [0.01,0.1,1],
+  "ramValsMB": [100],
   "noiseUpdateFractions": [0],
   "ingestBuffers": [0.1],
-  "dGridSearch": [3,5,7],
+  "dGridSearch": [3],
   "bGridSearch": [31],
   "BGridSearch": [1],
   "wGridSearch": [28],
@@ -71,7 +71,7 @@
   "expNMaxTWOLHSPerRow": false,
 
   "expASH": false,
-  "expChowMin": true,
+  "expChowMin": false,
   "expChowMinExactMI": true,
 
   "expHydra": false,
@@ -85,9 +85,9 @@
   "domain_sizes": [10000],
   "readFromDisk": true,
   "useNoBufferOmniVLDB": false,
-  "percs": [0.0],
+  "percs": [0.0,1.0],
   "percsForMultiplyers": [0.0],
   "useNoCast": true,
-  "expReadFile": true,
+  "expReadFile": false,
   "job_name": "local"
 }

@@ -2,6 +2,7 @@ package omni.synopses.chowMin;
 
 import omni.Config;
 import omni.Experiments.RunExperiments;
+import omni.datasets.Record.StringRecord;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -115,6 +116,16 @@ public class ChowLiu {
         // get max span tree for ChowLiu:
         return chowLiuTree;
 
+    }
+
+    public static double[][] computeExactMIs(RunExperiments runExperiments, Config config, int numAttributes) throws IOException {
+        if (config.datasetName.equals("tpc-ds")) {
+            return computeExactMIsFromDiskString(runExperiments, config, numAttributes);
+        } else if (config.datasetName.equals("CAIDA")) {
+            return computeExactMIsFromDisk(runExperiments, config, numAttributes);
+        } else {
+            throw new RuntimeException("Dataset name not found");
+        }
     }
 
     public static double[][] computeExactMIsFromDisk(RunExperiments runExperiments, Config config, int numAttributes)
@@ -262,6 +273,151 @@ public class ChowLiu {
         return MIs;
     }
 
+    public static double[][] computeExactMIsFromDiskString(RunExperiments runExperiments, Config config, int numAttributes)
+            throws IOException {
+        // For each pair of columns (i,j), store:
+        //   count(x_i, x_j)
+        //
+        // pairCounts[i][j] is only used for j > i.
+//        @SuppressWarnings("unchecked")
+        HashMap<StringPair, Long>[][] pairCounts =
+                new HashMap[numAttributes][numAttributes];
+
+        // Marginal counts for each column.
+//        @SuppressWarnings("unchecked")
+        HashMap<String, Long>[] marginalCounts =
+                new HashMap[numAttributes];
+
+        for (int i = 0; i < numAttributes; i++) {
+            marginalCounts[i] = new HashMap<>();
+            for (int j = i + 1; j < numAttributes; j++) {
+                pairCounts[i][j] = new HashMap<>();
+            }
+        }
+
+        long N = 0;
+
+        long numUpdates = 0;
+        long numDeletes = 0;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(runExperiments.cd.datasetReaderName))) {
+
+            br.readLine(); // skip header
+
+            String line;
+
+            while ((line = br.readLine()) != null) {
+
+                String[] values = line.split(",");
+
+                String[] record = new String[config.numStoredAttributes + 1];
+
+                System.arraycopy(values, 0, record, 0, config.numStoredAttributes + 1);
+
+
+                int sign = Integer.parseInt(values[values.length -1]);
+
+                if (sign != 1 && sign != -1) {
+                    throw new RuntimeException("Invalid sign value: " + sign);
+                }
+                StringRecord rec = new StringRecord(record);
+
+                // Update marginals
+                for (int i = 0; i < numAttributes; i++) {
+
+                    String value = rec.getValue(i).toString();
+
+                    HashMap<String, Long> counts = marginalCounts[i];
+
+                    long oldCount = counts.getOrDefault(value, 0L);
+                    long newCount = oldCount + sign;
+
+                    if (newCount == 0) {
+                        counts.remove(value);
+                    } else {
+                        counts.put(value, newCount);
+                    }
+                }
+
+                // Update joint counts
+                for (int i = 0; i < numAttributes; i++) {
+                    for (int j = i + 1; j < numAttributes; j++) {
+
+                        StringPair pair = new StringPair(record[i], record[j]);
+
+                        HashMap<StringPair, Long> counts = pairCounts[i][j];
+
+                        long oldCount = counts.getOrDefault(pair, 0L);
+                        long newCount = oldCount + sign;
+
+                        if (newCount == 0) {
+                            counts.remove(pair);
+                        } else {
+                            counts.put(pair, newCount);
+                        }
+                    }
+                }
+
+                N += sign;
+
+                if (sign == 1) {
+                    numUpdates++;
+                } else {
+                    numDeletes++;
+                }
+
+                if ((numUpdates + numDeletes) % 1_000_000 == 0) {
+                    double progress =
+                            (double) (numUpdates + numDeletes)
+                                    / (numUpdates + numDeletes) * 100.0;
+
+                    System.out.printf(
+                            "\rProcessed %,d records (updates %,d, deletes %,d)",
+                            numUpdates + numDeletes,
+                            numUpdates,
+                            numDeletes
+                    );
+                }
+            }
+        }
+
+        System.out.println();
+        System.out.println("Updates: " + numUpdates);
+        System.out.println("Deletes: " + numDeletes);
+        System.out.println("Final N: " + N);
+
+        if (N <= 0) {
+            throw new IllegalStateException("Final dataset is empty.");
+        }
+        int numPairs = numAttributes * (numAttributes - 1) / 2;
+
+        double[][] MIs = new double[numPairs][3];
+
+        int count = 0;
+
+        for (int i = 0; i < numAttributes; i++) {
+            for (int j = i + 1; j < numAttributes; j++) {
+
+                double mi = computeMIString(
+                        pairCounts[i][j],
+                        marginalCounts[i],
+                        marginalCounts[j],
+                        N
+                );
+
+                MIs[count] = new double[]{i, j, mi};
+
+                System.out.println(
+                        "MI " + i + " , " + j + " = " + mi
+                );
+
+                count++;
+            }
+        }
+
+        return MIs;
+    }
+
     public static class LongPair {
 
         private final long first;
@@ -294,6 +450,38 @@ public class ChowLiu {
         }
     }
 
+    public static class StringPair {
+
+        private final String first;
+        private final String second;
+
+        public StringPair(String first, String second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (!(o instanceof StringPair)) {
+                return false;
+            }
+
+            StringPair other = (StringPair) o;
+
+            return first.equals(other.first)
+                    && second.equals(other.second);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * first.hashCode() + second.hashCode();
+        }
+    }
+
     private static double computeMI(
             HashMap<LongPair, Long> jointCounts,
             HashMap<Long, Long> v1Counts,
@@ -310,6 +498,38 @@ public class ChowLiu {
 
             long v1Value = pair.first;
             long v2Value = pair.second;
+
+            long v1Count = v1Counts.get(v1Value);
+            long v2Count = v2Counts.get(v2Value);
+
+            double p_v1_v2 = (double) jointCount / N;
+            double p_v1 = (double) v1Count / N;
+            double p_v2 = (double) v2Count / N;
+
+            mi += p_v1_v2
+                    * Math.log(p_v1_v2 / (p_v1 * p_v2))
+                    / Math.log(2);
+        }
+
+        return mi;
+    }
+
+    private static double computeMIString(
+            HashMap<StringPair, Long> jointCounts,
+            HashMap<String, Long> v1Counts,
+            HashMap<String, Long> v2Counts,
+            long N) {
+
+        double mi = 0.0;
+
+        for (Map.Entry<StringPair, Long> entry : jointCounts.entrySet()) {
+
+            StringPair pair = entry.getKey();
+
+            long jointCount = entry.getValue();
+
+            String v1Value = pair.first;
+            String v2Value = pair.second;
 
             long v1Count = v1Counts.get(v1Value);
             long v2Count = v2Counts.get(v2Value);

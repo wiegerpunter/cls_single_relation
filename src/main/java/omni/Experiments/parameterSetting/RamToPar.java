@@ -1,7 +1,12 @@
 package omni.Experiments.parameterSetting;
 
+import omni.Config;
 import omni.Main;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -47,7 +52,7 @@ public class RamToPar {
     HashMap<Integer, double[]> sampleSizeToSketchKminParams = new HashMap<>();
 
     // chowMin hashmap
-    HashMap<Long, int[]> ramToChowMin = new HashMap<>();
+    HashMap<Long, HashMap<Integer, Integer>> ramToChowMin = new HashMap<>();
 
 
     int numAttrs;
@@ -85,12 +90,49 @@ public class RamToPar {
         }
     }
 
-    public void runChowMin(int depth) {
-        d = depth;
+    public void runChowMin(Config config) {
+        d = config.d;
+        HashMap<Integer, Integer> cardMap = readCardMap(config);
         for (long ram : ramVals) {
-            int[] parsChowMin = setParamsChowMin(ram);
+            HashMap<Integer, Integer> parsChowMin = setParamsChowMin(ram, cardMap);
             ramToChowMin.put(ram, parsChowMin);
         }
+    }
+
+    private HashMap<Integer, Integer> readCardMap(Config config) {
+        HashMap<Integer, Integer> cardMap = new HashMap<>();
+        String path = config.readFolder + "/input/data/" + config.datasetName + "/cardinalities.csv";
+        try (BufferedReader br = new BufferedReader(new FileReader(path))) {
+
+            String line = br.readLine(); // header
+
+            while ((line = br.readLine()) != null) {
+                if (line.isBlank()) {
+                    continue;
+                }
+
+                String[] parts = line.split(",", -1);
+
+                if (parts.length < 2) {
+                    continue;
+                }
+                int column = Integer.parseInt(parts[0].trim());
+                String cardString = parts[1].trim();
+                int card = Integer.parseInt(cardString);
+
+                if (column == 0 || column == numAttrs+2) {
+                    continue;
+                }
+                cardMap.computeIfAbsent(column - 1, k->card); // column -1 for index in numAttributes.
+
+
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read Card file: " + path, e);
+        }
+
+        return cardMap;
     }
 
     public void computeOmniSketchParametersFromRAM(int d, int b, double parFactor) {
@@ -650,8 +692,14 @@ public class RamToPar {
             double[] info = ramToAdap.get(ram);
             int sampleSize = (int) info[0];
             double ramPerRec = ram / (double) sampleSize;
-//            int bufferSize = (int) Math.max(1, 8000000/ramPerRec);
-            int bufferSize = (int) Math.max((ingestBuffer * sampleSize), 1);
+            int bufferSize = (int) Math.max(1, 8000000/ramPerRec);
+            if (sampleSize <= bufferSize) {
+                bufferSize = 1;
+                if (sampleSize == 1) {
+                    throw new RuntimeException("Sample size too small");
+                }
+            }
+//            int bufferSize = (int) Math.max((ingestBuffer * sampleSize), 1);
             return new int[]{sampleSize - bufferSize, bufferSize, (int) (10*ingestBuffer)};
         } else {
             throw new IllegalArgumentException("RAM not found in ramToAdap");
@@ -745,19 +793,103 @@ public class RamToPar {
         }
     }
 
-
-    public int[] setParamsChowMin(long ram) {
+    public HashMap<Integer, Integer> setParamsChowMin(long ram, HashMap<Integer, Integer> cardMap) {
         // number of CMs needed: numAttributes + numAttributes - 1
+        HashMap<Integer, Integer> widthMap = new HashMap<>();
         int numCMs = numAttrs * numAttrs/2 - numAttrs/2;
-        long cells = ram / 32L;
-        int perCM = (int) cells / (d * numCMs);
-        int width = (int) Math.sqrt(perCM);
-        System.out.println("Chow M All pairs has parameters d: " + d + " w: " +width);
+        long totalCells = ram / 32L;
+        int perCM = (int) totalCells / (d * numCMs);
+        int widthEqual = (int) Math.sqrt(perCM);
+        int[] widths = new int[numAttrs];
+        long usedCells = 0;
 
-        return new int[]{d,width};
+        int smallCards = 0;
+        for (int i = 0; i < numAttrs; i++) {
+            int card = cardMap.getOrDefault(i, 1);
+
+            if (card <= widthEqual) {
+                widths[i] = Math.min(widthEqual, card * 2);
+                smallCards+=1;
+            } else {
+                widths[i] = 0;
+            }
+        }
+
+        usedCells = countCells(widths);
+
+        if (usedCells > totalCells) {
+            Arrays.fill(widths, widthEqual);
+
+        } else {
+            long cellsToDistribute = totalCells - usedCells;
+            while (cellsToDistribute > 0) {
+
+                boolean increased = false;
+
+                for (int i = 0; i < numAttrs; i++) {
+
+                    // Skip attributes that already received their small-card allocation.
+                    if (cardMap.getOrDefault(i, 1) <= widthEqual) {
+                        continue;
+                    }
+
+                    // Temporarily increase this attribute.
+                    widths[i]++;
+
+                    long newCells = countCells(widths);
+
+                    if (newCells <= totalCells) {
+                        usedCells = newCells;
+                        cellsToDistribute = totalCells - usedCells;
+                        increased = true;
+                    } else {
+                        // Cannot afford another width for this attribute.
+                        widths[i]--;
+                    }
+
+                    if (cellsToDistribute <= 0) {
+                        break;
+                    }
+                }
+
+                // None of the remaining attributes can be increased.
+                if (!increased) {
+                    break;
+                }
+            }
+        }
+        for (int i = 0; i < numAttrs; i++) {
+            widthMap.put(i, widths[i]);
+
+            System.out.println(
+                    "Attribute " + i +
+                            ": cardinality=" + cardMap.get(i) +
+                            ", width=" + widths[i]
+            );
+        }
+
+        System.out.println(
+                "Chow-Liu Sketch: d=" + d +
+                        ", cells=" + usedCells +
+                        "/" + totalCells
+        );
+
+        return widthMap;
     }
 
-    public int[] getParamsChowMin(long ram) {
+    private long countCells(int[] widths) {
+        long cells = 0;
+
+        for (int i = 0; i < numAttrs; i++) {
+            for (int j = i + 1; j < numAttrs; j++) {
+                cells += (long) d * widths[i] * widths[j];
+            }
+        }
+
+        return cells;
+    }
+
+    public HashMap<Integer, Integer> getParamsChowMin(long ram) {
         if (ramToChowMin.containsKey(ram)) {
             return ramToChowMin.get(ram);
         } else {

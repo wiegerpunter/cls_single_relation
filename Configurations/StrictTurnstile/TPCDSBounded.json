@@ -6,7 +6,7 @@
   "readFolder": "/home/wieger/omnibounded_data/",
   "withDeletes": true,
   "spreadOutDeletes": true,
-  "ramValsMB": [1,10],
+  "ramValsMB": [100],
   "noiseUpdateFractions": [0],
   "ingestBuffers": [0.1],
   "dGridSearch": [3],
@@ -18,7 +18,7 @@
   "parFactorGridSearch": [100],
   "numBins": 3,
   "numPredicates": 11,
-  "sizeFactorOptions": [10000],
+  "sizeFactorOptions": [1],
   "sizeNoise": [0],
   "experimentName": "Deletes v0.1",
   "useMultNumAttributes": true,
@@ -37,7 +37,7 @@
   "expOmniSketchVLDBArrayRegBuffer": false,
   "expOmniSketchVLDBArrayWithBuffer": false,
   "expOmniSketchVLDBArrayWithBufferOpt": false,
-  "expOmniSketchVLDBArrayWithBufferOptBatchDeletes": true,
+  "expOmniSketchVLDBArrayWithBufferOptBatchDeletes": false,
   "expOmniSketchVLDBArrayWithBufferPerRow": false,
 
   "expOmniSketchVLDBArrayWithBufferPessDeleteCount": false,
@@ -64,8 +64,9 @@
   "expFastTWOLHSOneBucketPerRow": false,
   "expNMaxTWOLHSPerRow": false,
 
-  "expASH": true,
-  "expChowMin": true,
+  "expASH": false,
+  "expChowMin": false,
+  "expChowMinExactMI": true,
   "expHydra": false,
   "expResSample": false,
   "expCM": false,
@@ -80,6 +81,6 @@
   "percs": [0.0,1.0],
   "percsForMultiplyers": [0.0],
   "useNoCast": false,
-  "expReadFile": false,
+  "expReadFile": true,
   "job_name": "local"
 }

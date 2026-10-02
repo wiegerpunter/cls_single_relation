@@ -8,12 +8,14 @@ import omni.Main;
 import omni.datasets.CleanDataset;
 import omni.datasets.Record.Record;
 import omni.synopses.SynopsisRefactor;
+import omni.synopses.chowMin.Edge;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class runQueries {
     Config config;
@@ -36,6 +38,7 @@ public class runQueries {
     int[] numberOfKminsExceedingBounds;
     boolean[] case1;
     double[] bound;
+    List<Edge>[] clTrees;
 
     int[] NMax;
     int[] usedMaxSizes;
@@ -76,6 +79,11 @@ public class runQueries {
         numberOfKminsExceedingBounds = new int[cd.pointQueriesObj.length];
         bound = new double[cd.pointQueriesObj.length];
         case1 = new boolean[cd.pointQueriesObj.length];
+        clTrees = new List[cd.pointQueriesObj.length];
+        for (int i = 0; i < clTrees.length; i++) {
+            clTrees[i] = new ArrayList<>();
+        }
+
         Arrays.fill(case1, false);
 
     }
@@ -125,7 +133,7 @@ public class runQueries {
 //            }
             writeResultsToFilePointQuery(repetition + 1, s, d, ingestionTime, collisions, estimatedAnswersPointQuery,
                     SCap, NMax, usedMaxSizes, jaccardEstimates2LHS, unionEstimates2LHS, unionExact, witness2LHS, queryExecutionTime, totalQueryExecutionTime,
-                    numberOfKmins, numberOfKminsExceedingBounds, case1, bound);
+                    numberOfKmins, numberOfKminsExceedingBounds, case1, bound, clTrees);
         }
         System.out.println("Total queries: " + d.pointQueriesObj.length);
         System.out.println("Total queries with zero empty or singleton witnesses: " + s.countIsZero);
@@ -193,6 +201,7 @@ public class runQueries {
         NMax[queryId] = copy.nmax;
         case1[queryId] = copy.case1;
         bound[queryId] = copy.bound;
+        clTrees[queryId] = copy.clTree;
         usedMaxSizes[queryId] = copy.maxSize;
         jaccardEstimates2LHS[queryId] = copy.jaccardEstimate;
         unionEstimates2LHS[queryId] = copy.unionEstimate;
@@ -226,6 +235,7 @@ public class runQueries {
         NMax[queryId] = copy.nmax;
         case1[queryId] = copy.case1;
         bound[queryId] = copy.bound;
+        clTrees[queryId] = copy.clTree;
         usedMaxSizes[queryId] = copy.maxSize;
         jaccardEstimates2LHS[queryId] = copy.jaccardEstimate;
         unionEstimates2LHS[queryId] = copy.unionEstimate;
@@ -263,7 +273,8 @@ public class runQueries {
                                              int[] SCap, int[] NMax, int[] usedMaxSizes, double[] jaccardEstimates2LHS,
                                              double[] unionEstimates2LHS, int[] unionExact, int[] witness2LHS, long[] queryExecutionTime,
                                              long totalQueryExecutionTime,
-                                             int[] numberOfKmins, int[] numberOfKminsExceedingBounds, boolean[] case1, double[] bound) throws IOException {
+                                             int[] numberOfKmins, int[] numberOfKminsExceedingBounds, boolean[] case1,
+                                              double[] bound, List<Edge>[] clTrees) throws IOException {
         // write string[] result to csvOutputFile using BufferedWriter
         boolean init = false;
         //String currentDate = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
@@ -289,14 +300,14 @@ public class runQueries {
                     "intersectionSizeOfR","unionSizeOfR",
                     "meanQueryTime","BetaKmin","numKSamples","KminDeletes","exactInDeletes","exactUnionDeletes","uniqueSamples",
                     "numKmins","numKminsExceedingBounds","measuredSignatureCollisions","zipfAlpha", "case1", "bound",
-                    "bufferDeletesMinwise","domain","ingestBufferSize","deleteBufferSize"};
+                    "bufferDeletesMinwise","domain","ingestBufferSize","deleteBufferSize","clTree"};
             writer.writeNext(header);
         }
 
 
         String memUsageSyn = String.valueOf(s.getMemoryUsage());
         for (int i = 0; i < d.pointQueriesObj.length; i++) {
-            String[] result = new String[51];
+            String[] result = new String[52];
             // Dataset specific info;
             result[0] = String.valueOf(repetition);
             result[1] = String.valueOf(d.getDatasetSize());
@@ -366,10 +377,18 @@ public class runQueries {
             result[48] = String.valueOf(config.domain); // Assuming domain_sizes is an array of integers, and we want the first element.
             result[49] = String.valueOf(config.ingestBufferSize);
             result[50] = String.valueOf(config.deleteBufferSize);
+            result[51] = printChowLiu(clTrees[i]);
             writer.writeNext(result);
         }
 
         writer.close();
     }
 
+    private String printChowLiu(List<Edge> clTree) {
+        StringBuilder sb = new StringBuilder();
+        for (Edge e : clTree) {
+            sb.append(e.toString());
+        }
+        return sb.toString();
+    }
 }

@@ -1610,6 +1610,7 @@ public class CleanDataset {
         return datasetResidu;
     }
 
+    public String datasetReaderNameResidu;
 
     public String datasetReaderName;
     int datasetResiduSize = 0;
@@ -1646,7 +1647,12 @@ public class CleanDataset {
         // Compute answers for deletes
         pointQueryAnswersDeletes = new int[pointQueriesObj.length];
         pointQueryUnionDeletes = new int[pointQueriesObj.length];
-        datasetReaderName = dataset.getDatasetReaderName(perc, sizeFactor);
+        if (config.spreadOutDeletes) {
+            datasetReaderName = dataset.getDatasetReaderName(perc, sizeFactor);
+        } else {
+            datasetReaderName = dataset.getDatasetReaderNameAllAtEnd(perc, sizeFactor, false);
+            datasetReaderNameResidu = dataset.getDatasetReaderNameAllAtEnd(perc, sizeFactor, true);
+        }
         datasetResiduSize = dataset.getDatasetResiduSize();
 
         noiseSize = dataset.getDatasetNoiseSize();
@@ -1668,7 +1674,12 @@ public class CleanDataset {
         // Compute answers for deletes
         pointQueryAnswersDeletes = new int[pointQueries.length];
         pointQueryUnionDeletes = new int[pointQueries.length];
-        datasetReaderName = dataset.getDatasetReaderName(perc, sizeFactor);
+        if (config.spreadOutDeletes) {
+            datasetReaderName = dataset.getDatasetReaderName(perc, sizeFactor);
+        } else {
+            datasetReaderName = dataset.getDatasetReaderNameAllAtEnd(perc, sizeFactor, false);
+            datasetReaderNameResidu = dataset.getDatasetReaderNameAllAtEnd(perc, sizeFactor, true);
+        }
         datasetResiduSize = dataset.getDatasetResiduSize();
 
         noiseSize = dataset.getDatasetNoiseSize();

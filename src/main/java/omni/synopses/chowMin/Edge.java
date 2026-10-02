@@ -1,7 +1,7 @@
 package omni.synopses.chowMin;
 
 public class Edge {
-    int s, t;
+    final int s, t;
     public Edge(int s, int t) {
         this.s = s;
         this.t = t;
@@ -25,6 +25,11 @@ public class Edge {
 
     public int getT() {
         return t;
+    }
+
+    @Override
+    public String toString() {
+        return "(s:" + s + "-t:" + t+"),";
     }
 
 }

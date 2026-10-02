@@ -12,8 +12,8 @@ public class TWODCM {
 
     int[] reusableHashesS;
     int[] reusableHashesT;
-    int[] seedsS;
-    int[] seedsT;
+    private final int[] seedsS;
+    private final int[] seedsT;
 //
 //    public TWODCM(int depth, int width, Edge edge) {
 //        this.depth = depth;
@@ -35,20 +35,21 @@ public class TWODCM {
 //        reusableHashesT = new int[depth];
 //        throw new RuntimeException("Outdated");
 //    }
-    public TWODCM(int depth, int widthS, int widthT, int s, int t, int sHashCode, int tHashCode) {
+    public TWODCM(int depth, int widthS, int widthT, int s, int t, int[] seedsS, int[] seedsT) {
         this.depth = depth;
         this.widthS = widthS;
         this.widthT = widthT;
         this.attrS = s;
         this.attrT = t;
-
-        seedsS = new int[depth];
-        seedsT = new int[depth];
-
-        for (int j = 0; j < seedsS.length; j++) {
-            seedsS[j] = (j+1)* sHashCode;
-            seedsT[j] = (j+1)* tHashCode;
-        }
+        this.seedsS = seedsS;
+        this.seedsT = seedsT;
+//        seedsS = new int[depth];
+//        seedsT = new int[depth];
+//
+//        for (int j = 0; j < seedsS.length; j++) {
+//            seedsS[j] = (j+1)* sHashCode;
+//            seedsT[j] = (j+1)* tHashCode;
+//        }
         CMR = new int[depth * widthS * widthT];
         reusableHashesS = new int[depth];
         reusableHashesT = new int[depth];

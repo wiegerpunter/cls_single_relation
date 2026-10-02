@@ -1,6 +1,10 @@
 package omni.Experiments.utils;
 
 import omni.Experiments.ExpSetting;
+import omni.synopses.chowMin.Edge;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class QueryInfo {
     public int CMRow;
@@ -21,6 +25,7 @@ public class QueryInfo {
     private int estimate;
 
     public ExpSetting expSetting;
+    public List<Edge> clTree = new ArrayList<>();
 
     public QueryInfo() {
         CMRow = 0;
@@ -55,6 +60,7 @@ public class QueryInfo {
         this.exactUnion = qi.exactUnion;
         this.witness2LHS = qi.witness2LHS;
         this.estimate = qi.estimate;
+        this.clTree = qi.clTree;
         this.expSetting = new ExpSetting(qi.expSetting.getIntersectionSize(), qi.expSetting.getB(), qi.expSetting.getSetSizes());
     }
 
@@ -107,5 +113,9 @@ public class QueryInfo {
     }
     public double getJaccardEstimate() {
         return jaccardEstimate;
+    }
+
+    public void setChowLiuTree(List<Edge> f) {
+        this.clTree = f;
     }
 }

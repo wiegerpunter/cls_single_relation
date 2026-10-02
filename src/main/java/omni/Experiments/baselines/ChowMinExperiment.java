@@ -8,17 +8,19 @@ import omni.synopses.chowMin.ChowMinAllPairs;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 
 public class ChowMinExperiment implements Experiment {
     private RunExperiments runExperiments;
     @Override
     public void run(long ram, RamToPar rtp, int repetition, Config config) throws IOException {
 
-        int[] params = rtp.getParamsChowMin(ram);
-        System.out.println("Running chowMin with parameters: " + Arrays.toString(params));
+        HashMap<Integer, Integer> widthMap = rtp.getParamsChowMin(ram);
+        System.out.println("Running chowMin with widthMap: " + widthMap.toString());
+        int d = config.d;
 
-        double[][] estimatedMIs = estimateMIs(runExperiments, config, ram, params);
-        ChowMinAllPairs cm = new ChowMinAllPairs(ram, config.numStoredAttributes, params);
+        double[][] estimatedMIs = estimateMIs(runExperiments, config, ram, widthMap, d);
+        ChowMinAllPairs cm = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, false);
         cm.setMIs(estimatedMIs, true);
 
         cm.printParams();
@@ -27,9 +29,9 @@ public class ChowMinExperiment implements Experiment {
     }
 
 
-    public static double[][] estimateMIs(RunExperiments runExperiments, Config config, long ram, int[] params) {
+    public static double[][] estimateMIs(RunExperiments runExperiments, Config config, long ram, HashMap<Integer, Integer> widthMap, int d) {
 
-        ChowMinAllPairs ChowLiuMinAllPairs = new ChowMinAllPairs(ram, config.numStoredAttributes, params);
+        ChowMinAllPairs ChowLiuMinAllPairs = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, false);
         long time_passed = runExperiments.ingestData(ChowLiuMinAllPairs);
         return ChowLiuMinAllPairs.estimateMIs();
     }

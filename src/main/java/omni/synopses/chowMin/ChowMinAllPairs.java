@@ -25,22 +25,16 @@ public class ChowMinAllPairs extends SynopsisRefactor {
     private final int[][] hashes;
     private double[][] MIs;
     final public String[] columns;
+    final boolean saveCLTree;
 
-    public ChowMinAllPairs(long ram, int numAttributes, int[] params) {
+    public ChowMinAllPairs(long ram, int numAttributes, HashMap<Integer, Integer> widthMap, int d, boolean saveCLTree) {
         this.columns = makeColumnsSingleTable(numAttributes);
         this.ram = ram;
         this.numAttributes = numAttributes;
-        this.parameters = params;
-        this.depth = params[0];
-        this.widthMap = makeWidthMapSingleTable(numAttributes, params[1]); // only when using joins
+        this.depth =d;
+        this.saveCLTree = saveCLTree;
+        this.widthMap = widthMap;//makeWidthMapSingleTable(numAttributes, params[1]); // only when using joins
 
-        sketches = new TWODCM[numAttributes*(numAttributes-1)/2];
-        for (int a1 = 0; a1 < numAttributes-1; a1++) { // summary for every pair in upper triangle
-            for (int a2 = a1+1; a2<numAttributes; a2++) {
-                sketches[sketch_idx(a1, a2)] = new TWODCM(this.depth, this.widthMap.get(a1), this.widthMap.get(a2), a1, a2,
-                        getAttrSpecHashCode(a1, true), getAttrSpecHashCode(a2, true));
-            }
-        }
         seeds = new int[numAttributes][this.depth];
         for (int i = 0; i < numAttributes; i++) {
             int attrSpecSeed = getAttrSpecHashCode(i,true);
@@ -48,6 +42,14 @@ public class ChowMinAllPairs extends SynopsisRefactor {
                 seeds[i][j] = (j+1)*attrSpecSeed;
             }
         }
+        sketches = new TWODCM[numAttributes*(numAttributes-1)/2];
+        for (int a1 = 0; a1 < numAttributes-1; a1++) { // summary for every pair in upper triangle
+            for (int a2 = a1+1; a2<numAttributes; a2++) {
+                sketches[sketch_idx(a1, a2)] = new TWODCM(this.depth, this.widthMap.get(a1), this.widthMap.get(a2), a1, a2,
+                        seeds[a1], seeds[a2]);
+            }
+        }
+
         hashes = new int[numAttributes][this.depth];
     }
 
@@ -144,7 +146,7 @@ public class ChowMinAllPairs extends SynopsisRefactor {
         for (int att = 0; att < numAttributes; att++) {
             int[] h = hashes[att];
             int[] s = seeds[att];
-            long v = record[att];
+            long v = record[att+ 1];
             computeHashes(att, v, h, s);
         }
         ingestToSketch(null, sign);
@@ -184,6 +186,9 @@ public class ChowMinAllPairs extends SynopsisRefactor {
 
         int root_cl = active.get(0);
         List<Edge> f = buildFactorization(attrsInPath, root_cl, numAttributes, MIs);
+        if (saveCLTree) {
+            queryInfo.setChowLiuTree(f);
+        }
         // query the pairwise CMs to get to estimate.
 
         return queryFactors(f, (String[]) query.getQueryData(numAttributes), attrsInPath);
@@ -191,6 +196,14 @@ public class ChowMinAllPairs extends SynopsisRefactor {
 
     @Override
     public int query(long[] query, int numPreds, QueryInfo queryInfo) {
+//        for (int j = 0; j < depth; j++) {
+//            for (int s = 0; s < numAttributes; s++) {
+//                for (int w = 0; w < widthMap.get(s); w++) {
+//                    testMarginals(j, s, w);
+//                }
+//            }
+//        }
+
         ArrayList<Integer> active = new ArrayList<>(numAttributes);
         checkActive(active, query);
 
@@ -207,7 +220,9 @@ public class ChowMinAllPairs extends SynopsisRefactor {
         int root_cl = active.get(0);
         List<Edge> f = buildFactorization(attrsInPath, root_cl, numAttributes, MIs);
         // query the pairwise CMs to get to estimate.
-
+        if (saveCLTree) {
+            queryInfo.setChowLiuTree(f);
+        }
         return queryFactors(f, query, attrsInPath);
     }
 
@@ -385,7 +400,7 @@ public class ChowMinAllPairs extends SynopsisRefactor {
         for (int i = 0; i < margs.length; i++) {
             int est = sketches[sketchesWithS.get(i)].marginalOneRep(j,s,w);
             margs[i] = est;
-            if (i > 1 && margs[i] != margs[i - 1]) {
+            if (i >= 1 && margs[i] != margs[i - 1]) {
                 throw new RuntimeException("Margs not equal");
             }
         }
@@ -422,22 +437,24 @@ public class ChowMinAllPairs extends SynopsisRefactor {
 
     private double estMI(int width1, int width2, int a1, int a2, int sketch_idx, int j, double[] marg1, double[] marg2) {
         for (int w=0; w<width1; w++) {
-            marg1[w] = sketches[sketch_idx_first(a1)]
+            marg1[w] = sketches[sketch_idx]
                     .queryMarginalCodomain(a1, w, j);
         }
         for (int w = 0; w < width2; w++) {
-            marg2[w] = sketches[sketch_idx_first(a2)]
+            marg2[w] = sketches[sketch_idx]
                     .queryMarginalCodomain(a2, w, j);
         }
 
-        double mi = 0;
+        double mi = 0.0;
         for (int w1 = 0; w1 < width1; w1++) {
             for (int w2 = 0; w2 < width2; w2++) {
                 double joint = this.sketches[sketch_idx].jointCodomain(w1, w2,j);
-                if (joint == 0) {
+                if (joint <= 0 ||
+                        marg1[w1] <= 0 ||
+                        marg2[w2] <= 0) {
                     continue;
                 }
-                double mi_iter = joint/N * Math.log(joint/ (marg1[w1] * marg2[w2]));
+                double mi_iter = joint/N * Math.log(joint * N/ (marg1[w1] * marg2[w2]));
                 if (!Double.isNaN(mi_iter)) {
                     mi += mi_iter;
                 }

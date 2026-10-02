@@ -63,6 +63,19 @@ public class StringDataset {
         noiseSize = (countCsvRecords(subfolder) - datasetResiduSize)/2;
     }
 
+    private void setupDatasetAllAtEnd(double perc, int sizeFactor, boolean residu) {
+        String subfolder = config.readFolder + "input/data/tpc-ds/" + sizeFactor + "/";
+        if (residu) {
+            datasetFileName = subfolder + "residu.csv";
+        } else {
+            datasetFileName = subfolder + perc +"/" + perc + ".csv";
+        }
+        if (datasetResiduSize == 0) {
+            throw new RuntimeException("Dataset Residu size is zero");
+        }
+        noiseSize = (countCsvRecords(subfolder + perc +"/") - datasetResiduSize)/2;
+    }
+
     public void generateQueries(int sizeFactor) throws IOException {
         setupResiduDataset(sizeFactor); // Use 0.0 to generate queries on the residu dataset
         generateQueriesString();
@@ -362,6 +375,10 @@ public class StringDataset {
 
     public String getDatasetReaderName(double perc, int sizeFactor) {
         setupDataset(perc, sizeFactor);
+        return datasetFileName;
+    }
+    public String getDatasetReaderNameAllAtEnd(double perc, int sizeFactor, boolean residu) {
+        setupDatasetAllAtEnd(perc, sizeFactor, residu);
         return datasetFileName;
     }
 

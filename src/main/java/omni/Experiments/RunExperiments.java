@@ -8,7 +8,6 @@ import omni.datasets.DatasetRefactor;
 import omni.datasets.Record.LongRecord;
 import omni.datasets.Record.StringRecord;
 import omni.synopses.SynopsisRefactor;
-import omni.synopses.chowMin.ChowMinAllPairs;
 import omni.synopses.omniFactory.OmniSketch;
 import omni.synopses.omniFactory.OmniSketchBuilder;
 import omni.Experiments.parameterSetting.RamToPar;
@@ -249,7 +248,7 @@ public class RunExperiments {
                         } else if (experimentName.contains("chowMin")) {
                             for (int d : config.dGridSearch) {
                                 config.d = d;
-                                rtp.runChowMin(config.d);
+                                rtp.runChowMin(config);
                                 experiment.run(ram, rtp, repetition, config);
                             }
                         }
@@ -461,10 +460,19 @@ public class RunExperiments {
         if (config.readFromDisk) {
             System.out.println("Reading dataset from disk");
             if (config.useNoCast) {
-                time_passed = runDatasetFromDisk(syn);
+                if (config.spreadOutDeletes) {
+                    time_passed = runDatasetFromDiskSpreadOut(syn);
+                } else {
+                    time_passed = runDatasetFromDiskAllAtEnd(syn);
+                }
             } else {
 //            time_passed = runDatasetFromDiskLong(syn);
-                time_passed = runDatasetFromDiskString(syn);
+                if (config.spreadOutDeletes) {
+
+                    time_passed = runDatasetFromDiskSpreadOutString(syn);
+                } else {
+                    time_passed = runDatasetFromDiskAllAtEndString(syn);
+                }
             }
         } else {
 
@@ -483,7 +491,232 @@ public class RunExperiments {
         return time_passed;
     }
 
-    private long runDatasetFromDisk(SynopsisRefactor syn) {
+    private long runDatasetFromDiskAllAtEndString(SynopsisRefactor syn) {
+        System.out.println("Running synopsis");
+        int numUpdates = 0;
+        int numDeletes = 0;
+
+        long startTime = System.currentTimeMillis();
+        try (BufferedReader br = new BufferedReader(new FileReader(cd.datasetReaderNameResidu))) {
+            br.readLine(); // Skip header line
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+//                String[] record = new String[values.length - 1];
+                String[] record = new String[config.numStoredAttributes + 1];
+                System.arraycopy(values, 0, record, 0, config.numStoredAttributes + 1);
+//                System.arraycopy(values, 0, record, 0, values.length - 1);
+                int sign = Integer.parseInt(values[values.length - 1]);
+                StringRecord rec = new StringRecord(record);
+                if (sign == 1) {
+                    syn.add(rec);
+                    numUpdates++;
+                } else if (sign == -1){
+                    syn.delete(rec);
+                    numDeletes++;
+                } else {
+                    throw new RuntimeException("Invalid sign value: " + sign);
+                }
+
+                if (numDeletes > 0 && numDeletes % 1000000 == 0) {
+                    System.out.printf("\rNumber of deletes: " + numDeletes + " / " + cd.getNoiseSize());
+                }
+                if (numUpdates % 1000000 == 0) {
+                    double progress = (double) (numUpdates + numDeletes) / cd.getDatasetSize() * 100;
+                    System.out.printf("\rProgress: " + progress);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try (BufferedReader br = new BufferedReader(new FileReader(cd.datasetReaderName))) {
+            br.readLine(); // Skip header line
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+//                String[] record = new String[values.length - 1];
+                String[] record = new String[config.numStoredAttributes + 1];
+                System.arraycopy(values, 0, record, 0, config.numStoredAttributes + 1);
+//                System.arraycopy(values, 0, record, 0, values.length - 1);
+                int sign = Integer.parseInt(values[values.length - 1]);
+                StringRecord rec = new StringRecord(record);
+                if (sign == 1) {
+                    syn.add(rec);
+                    numUpdates++;
+                } else if (sign == -1){
+                    syn.delete(rec);
+                    numDeletes++;
+                } else {
+                    throw new RuntimeException("Invalid sign value: " + sign);
+                }
+
+                if (numDeletes > 0 && numDeletes % 1000000 == 0) {
+                    System.out.printf("\rNumber of deletes: " + numDeletes + " / " + cd.getNoiseSize());
+                }
+                if (numUpdates % 1000000 == 0) {
+                    double progress = (double) (numUpdates + numDeletes) / cd.getDatasetSize() * 100;
+                    System.out.printf("\rProgress: " + progress);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try (BufferedReader br = new BufferedReader(new FileReader(cd.datasetReaderName))) {
+            br.readLine(); // Skip header line
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+//                String[] record = new String[values.length - 1];
+                String[] record = new String[config.numStoredAttributes + 1];
+                System.arraycopy(values, 0, record, 0, config.numStoredAttributes + 1);
+//                System.arraycopy(values, 0, record, 0, values.length - 1);
+                int sign = Integer.parseInt(values[values.length - 1]);
+                StringRecord rec = new StringRecord(record);
+                if (sign == 1) {
+                    syn.delete(rec);
+                    numDeletes++;
+                } else {
+                    throw new RuntimeException("Invalid sign value: " + sign);
+                }
+
+                if (numDeletes > 0 && numDeletes % 1000000 == 0) {
+                    System.out.printf("\rNumber of deletes: " + numDeletes + " / " + cd.getNoiseSize());
+                }
+                if (numUpdates % 1000000 == 0) {
+                    double progress = (double) (numUpdates + numDeletes) / cd.getDatasetSize() * 100;
+                    System.out.printf("\rProgress: " + progress);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        long endTime = System.currentTimeMillis();
+        cd.numDeletes = numDeletes;
+
+
+        return endTime - startTime;
+    }
+
+    private long runDatasetFromDiskAllAtEnd(SynopsisRefactor syn) {
+        System.out.println("Running synopsis");
+        int numUpdates = 0;
+        int numDeletes = 0;
+
+
+        long startTime = System.currentTimeMillis();
+        try (BufferedReader br = new BufferedReader(new FileReader(cd.datasetReaderNameResidu))) {
+            br.readLine(); // Skip header line
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+//                long[] record = new long[values.length - 1];
+                long[] record = new long[config.numStoredAttributes + 1];
+//                for (int i = 0; i < values.length -1; i++) {
+//                    record[i] = Long.parseLong(values[i]);
+//                }
+                for (int i = 0; i < record.length; i++) {
+                    record[i] = Long.parseLong(values[i]);
+                }
+                int sign = Integer.parseInt(values[values.length - 1]);
+
+                if (sign == 1) {
+                    syn.add(record);
+                    numUpdates++;
+                } else if (sign == -1){
+                    syn.delete(record);
+                    numDeletes++;
+                } else {
+                    throw new RuntimeException("Invalid sign value: " + sign);
+                }
+                if (numUpdates % 1000000 == 0) {
+                    double progress = (double) (numUpdates + numDeletes) / cd.getDatasetSize() * 100;
+                    System.out.printf("\rProgress residu: " + progress);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try (BufferedReader br = new BufferedReader(new FileReader(cd.datasetReaderName))) {
+            br.readLine(); // Skip header line
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+//                long[] record = new long[values.length - 1];
+                long[] record = new long[config.numStoredAttributes + 1];
+//                for (int i = 0; i < values.length -1; i++) {
+//                    record[i] = Long.parseLong(values[i]);
+//                }
+                for (int i = 0; i < record.length; i++) {
+                    record[i] = Long.parseLong(values[i]);
+                }
+                int sign = Integer.parseInt(values[values.length - 1]);
+
+                if (sign == 1) {
+                    syn.add(record);
+                    numUpdates++;
+                } else if (sign == -1){
+                    syn.delete(record);
+                    numDeletes++;
+                } else {
+                    throw new RuntimeException("Invalid sign value: " + sign);
+                }
+
+                if (numDeletes > 0 && numDeletes % 1000000 == 0) {
+                    System.out.printf("\rNumber of deletes: " + numDeletes + " / " + cd.getNoiseSize());
+                }
+                if (numUpdates % 1000000 == 0) {
+                    double progress = (double) (numUpdates + numDeletes) / cd.getDatasetSize() * 100;
+                    System.out.printf("\rProgress: " + progress);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try (BufferedReader br = new BufferedReader(new FileReader(cd.datasetReaderName))) {
+            br.readLine(); // Skip header line
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+//                long[] record = new long[values.length - 1];
+                long[] record = new long[config.numStoredAttributes + 1];
+//                for (int i = 0; i < values.length -1; i++) {
+//                    record[i] = Long.parseLong(values[i]);
+//                }
+                for (int i = 0; i < record.length; i++) {
+                    record[i] = Long.parseLong(values[i]);
+                }
+                int sign = Integer.parseInt(values[values.length - 1]);
+
+                if (sign == 1) {
+                    syn.delete(record);
+                    numDeletes++;
+                } else {
+                    throw new RuntimeException("Invalid sign value: " + sign);
+                }
+
+                if (numDeletes > 0 && numDeletes % 1000000 == 0) {
+                    System.out.printf("\rNumber of deletes: " + numDeletes + " / " + cd.getNoiseSize());
+                }
+                if (numUpdates % 1000000 == 0) {
+                    double progress = (double) (numUpdates + numDeletes) / cd.getDatasetSize() * 100;
+                    System.out.printf("\rProgress: " + progress);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        long endTime = System.currentTimeMillis();
+        cd.numDeletes = numDeletes;
+
+        return endTime - startTime;
+    }
+
+    private long runDatasetFromDiskSpreadOut(SynopsisRefactor syn) {
         System.out.println("Running synopsis");
         int numUpdates = 0;
         int numDeletes = 0;
@@ -536,58 +769,7 @@ public class RunExperiments {
 
     }
 
-    private long runDatasetFromDiskLong(SynopsisRefactor syn) {
-        System.out.println("Running synopsis");
-        int numUpdates = 0;
-        int numDeletes = 0;
-
-        long startTime = System.currentTimeMillis();
-
-        try (BufferedReader br = new BufferedReader(new FileReader(cd.datasetReaderName))) {
-            br.readLine(); // Skip header line
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] values = line.split(",");
-//                long[] record = new long[values.length - 1];
-                long[] record = new long[config.numStoredAttributes + 1];
-                for (int i = 0; i < record.length -1; i++) {
-                    record[i] = Long.parseLong(values[i]);
-                }
-                int sign = Integer.parseInt(values[values.length - 1]);
-                LongRecord rec = new LongRecord(record);
-                if (sign == 1) {
-                    syn.add(rec);
-                    numUpdates++;
-                } else if (sign == -1){
-                    syn.delete(rec);
-                    numDeletes++;
-                } else {
-                    throw new RuntimeException("Invalid sign value: " + sign);
-                }
-
-                if (numDeletes > 0 && numDeletes % 1000000 == 0) {
-                    System.out.printf("\rNumber of deletes: " + numDeletes + " / " + cd.getNoiseSize());
-                }
-                if (numUpdates % 1000000 == 0) {
-                    double progress = (double) (numUpdates + numDeletes) / cd.getDatasetSize() * 100;
-                    System.out.printf("\rProgress: " + progress);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
-        long endTime = System.currentTimeMillis();
-        cd.numDeletes = numDeletes;
-
-
-        return endTime - startTime;
-
-    }
-
-
-    private long runDatasetFromDiskString(SynopsisRefactor syn) {
+    private long runDatasetFromDiskSpreadOutString(SynopsisRefactor syn) {
         System.out.println("Running synopsis");
         int numUpdates = 0;
         int numDeletes = 0;
@@ -736,12 +918,12 @@ public class RunExperiments {
         System.out.println("Running OmniSketch with parameters: " + Arrays.toString(params));
 
         int numCells = config.d * config.w * config.numStoredAttributes;
-//        int bufferSize = 8000000 / numCells / 32; // 1MB buffer size
+        int bufferSize = 8000000 / numCells / 32; // 1MB buffer size
         if (config.B <= 2) {
             System.out.println("Parameter settings too small, skip experiment ram: " + ram/8_000_000 + ", d: " + config.d + ", w: " + config.w + " numAttrs: " + config.numStoredAttributes);
             return;
         }
-        int bufferSize = Math.max(2, (int) (config.B * 0.05));
+//        int bufferSize = Math.max(2, (int) (config.B * 0.05));
         OmniSketch omniSketch = omniSketchBuilder
                 .setRam(ram)
                 .setIngestBufferSize(bufferSize/2)
