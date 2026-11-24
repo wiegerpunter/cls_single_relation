@@ -27,7 +27,7 @@ public class ChowMinAllPairs extends SynopsisRefactor {
     final public String[] columns;
     final boolean saveCLTree;
 
-    public ChowMinAllPairs(long ram, int numAttributes, HashMap<Integer, Integer> widthMap, int d, boolean saveCLTree) {
+    public ChowMinAllPairs(long ram, int numAttributes, HashMap<Integer, Integer> widthMap, int d, boolean saveCLTree, int repetition) {
         this.columns = makeColumnsSingleTable(numAttributes);
         this.ram = ram;
         this.numAttributes = numAttributes;
@@ -39,7 +39,7 @@ public class ChowMinAllPairs extends SynopsisRefactor {
         for (int i = 0; i < numAttributes; i++) {
             int attrSpecSeed = getAttrSpecHashCode(i,true);
             for (int j = 0; j < seeds[i].length; j++) {
-                seeds[i][j] = (j+1)*attrSpecSeed;
+                seeds[i][j] = (j+1)*attrSpecSeed + 10*repetition;
             }
         }
         sketches = new TWODCM[numAttributes*(numAttributes-1)/2];

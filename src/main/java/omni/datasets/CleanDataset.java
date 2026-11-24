@@ -12,6 +12,7 @@ import omni.datasets.Record.Record;
 import omni.datasets.Record.RecordUtils;
 import omni.datasets.caida.CAIDADataset;
 import omni.datasets.fromDisk.SyntheticDataset;
+import omni.datasets.snmp.SNMPDataset;
 import omni.datasets.stringData.StringDataset;
 
 import java.io.*;
@@ -74,7 +75,9 @@ public class CleanDataset {
     public void setAttributes(int repetition) {
         this.repetition = repetition;
         if (Objects.equals(name, "SNMP")) {
-            cleanIds = new int[]{12, 14, 11, 1, 5, 13, 9, 8, 10, 21, 15};//{0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 17};
+            cleanIds = new int[]{2, 22, 17, 11, 12, 15, 18, 19, 20, 21, 1};
+//            cleanIds = new int[]{3,4,9,10,11,13,14,15,16,17,18,19,20,21,22};//, 14, 11, 1, 5, 13, 9, 8, 10, 21, 15};//{0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 17};
+//            cleanIds = new int[]{12, 14, 11, 1, 5, 13, 9, 8, 10, 21, 15};//{0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 17};
             //int[] order = {12, 14, 11, 1, 5, 13, 9, 8, 10, 21, 15};//21, 19, 18, 1, 16, 12, 15, 5, 20,11, 17, 8, 13, 10};
         } else if (Objects.equals(name, "CAIDA")) {
             cleanIds = new int[]{5, 6, 8, 9, 10}; // 4 & 7 are also ok but correlate with 5 6 8 9.
@@ -1708,7 +1711,29 @@ public class CleanDataset {
     }
 
 
-    public void readSNMP() {
-        throw new RuntimeException("Not implemented yet.");
+    public void snmp(double perc, int sizeFactor) throws IOException {
+        SNMPDataset dataset = new SNMPDataset(config, this);
+        if (dataset.queriesNotExistSNMP(sizeFactor)) {
+            dataset.generateQueries(sizeFactor);
+        } else {
+            dataset.loader(sizeFactor);
+        }
+        pointQueries = dataset.getPointQueries();
+        pointQueryAnswers = dataset.getPointQueryAnswers();
+        pointQueriesNumAttrs = dataset.getPointQueriesNumAttrs();
+        pointQueryBinNumber = dataset.getPointQueryBinNumber();
+        pointQueryUnion = dataset.getPointQueryUnion();
+        // Compute answers for deletes
+        pointQueryAnswersDeletes = new int[pointQueries.length];
+        pointQueryUnionDeletes = new int[pointQueries.length];
+        if (config.spreadOutDeletes) {
+            datasetReaderName = dataset.getDatasetReaderName(perc, sizeFactor);
+        } else {
+            datasetReaderName = dataset.getDatasetReaderNameAllAtEnd(perc, sizeFactor, false);
+            datasetReaderNameResidu = dataset.getDatasetReaderNameAllAtEnd(perc, sizeFactor, true);
+        }
+        datasetResiduSize = dataset.getDatasetResiduSize();
+
+        noiseSize = dataset.getDatasetNoiseSize();
     }
 }

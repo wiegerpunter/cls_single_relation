@@ -123,7 +123,9 @@ public class ChowLiu {
             return computeExactMIsFromDiskString(runExperiments, config, numAttributes);
         } else if (config.datasetName.equals("CAIDA")) {
             return computeExactMIsFromDisk(runExperiments, config, numAttributes);
-        } else {
+        } else if (config.datasetName.equals("SNMP")) {
+            return computeExactMIsFromDisk(runExperiments, config, numAttributes);
+        }else {
             throw new RuntimeException("Dataset name not found");
         }
     }

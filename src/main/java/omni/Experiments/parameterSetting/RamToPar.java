@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class RamToPar {
 
@@ -102,6 +104,16 @@ public class RamToPar {
     private HashMap<Integer, Integer> readCardMap(Config config) {
         HashMap<Integer, Integer> cardMap = new HashMap<>();
         String path = config.readFolder + "/input/data/" + config.datasetName + "/cardinalities.csv";
+        Set<Integer> selected = Set.of();
+        if (config.datasetName.equals("SNMP")) {
+            int[] selectedAttributes = {
+                    2, 17, 20, 11, 12, 15, 18, 19, 21, 22, 1
+            };
+
+            selected = Arrays.stream(selectedAttributes)
+                    .boxed()
+                    .collect(Collectors.toSet());
+        }
         try (BufferedReader br = new BufferedReader(new FileReader(path))) {
 
             String line = br.readLine(); // header
@@ -116,15 +128,24 @@ public class RamToPar {
                 if (parts.length < 2) {
                     continue;
                 }
-                int column = Integer.parseInt(parts[0].trim());
-                String cardString = parts[1].trim();
-                int card = Integer.parseInt(cardString);
+                if (config.datasetName.equals("SNMP")){
+                    int column = Integer.parseInt(parts[0].trim());
+                    int card = Integer.parseInt(parts[1].trim());
 
-                if (column == 0 || column == numAttrs+2) {
-                    continue;
+                    if (selected.contains(column)) {
+                        cardMap.put(column, card);
+                    }
+                } else {
+                    int column = Integer.parseInt(parts[0].trim());
+                    String cardString = parts[1].trim();
+                    int card = Integer.parseInt(cardString);
+
+                    if (column == 0 || column == numAttrs + 2) {
+                        continue;
+                    }
+
+                    cardMap.computeIfAbsent(column - 1, k -> card); // column -1 for index in numAttributes.
                 }
-                cardMap.computeIfAbsent(column - 1, k->card); // column -1 for index in numAttributes.
-
 
             }
 

@@ -24,7 +24,7 @@ public class ChowMinExactMIExperiment implements Experiment {
 
         // EXACT Mutual Information
         double[][] MIs = computeExactMIs(runExperiments, config, config.numStoredAttributes);
-        ChowMinAllPairs cm = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, true);
+        ChowMinAllPairs cm = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, true, config.seed);
         cm.setMIs(MIs, false);
         cm.printParams();
         runExperiments.runSynopsisRamBased(cm, repetition);
@@ -32,7 +32,7 @@ public class ChowMinExactMIExperiment implements Experiment {
         // Estimated Mutual Information
 
         double[][] estimatedMIs = estimateMIs(runExperiments, config, ram, widthMap, d);
-        ChowMinAllPairs cm_est = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, true);
+        ChowMinAllPairs cm_est = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, true, config.seed);
         cm_est.setMIs(estimatedMIs, true);
         cm_est.printParams();
         runExperiments.runSynopsisRamBased(cm_est, repetition);

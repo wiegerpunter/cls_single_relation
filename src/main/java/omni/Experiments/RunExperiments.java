@@ -46,9 +46,14 @@ public class RunExperiments {
                         if (config.useMultNumAttributes) {
                             for (int j = 2; j < cd.cleanIds.length; j++) { //cd.cleanIds.length
                                 config.numStoredAttributes = j + 1;
-                                if (cd.cleanIds.length == 11 && config.numStoredAttributes % 3 != 0 && config.numStoredAttributes != 11) {
-                                    continue; // skip attributes that are not multiples of 3, except for 11. Only do this for synth, otherwise keep everything in.
-                                }
+//                                if (cd.cleanIds.length == 11 && config.numStoredAttributes % 3 != 0 && config.numStoredAttributes != 11) {
+//                                    continue; // skip attributes that are not multiples of 3, except for 11. Only do this for synth, otherwise keep everything in.
+//                                }
+//                                if (cd.cleanIds.length == 11 && config.numStoredAttributes % 3 != 0) {
+//                                    if (config.numStoredAttributes != 4 && config.numStoredAttributes != 5) {
+//                                        continue; // skip attributes that are not multiples of 3, except for 11. Only do this for synth, otherwise keep everything in.
+//                                    }
+//                                }
                                 System.out.println("Running with " + config.numStoredAttributes + " attributes");
                                 if (config.readFromDisk) {
                                     config.noiseUpdateFractions = new ArrayList<>();
@@ -93,17 +98,17 @@ public class RunExperiments {
 
     private void prepareDataset(int conditionIndex, double zipfAlpha, int noiseSize, double perc) throws IOException, CsvValidationException {
         double sizeFactor = 0;
-        if ((config.datasetName.equals("SNMP") || config.datasetName.equals("CAIDA") && !config.readFromDisk)) {
-            config.fileStartCondition = conditions[conditionIndex];
-            if (!config.readFromDisk) {
-                readRealDataset(conditionIndex);
-            }
-        } else {
+//        if ((config.datasetName.equals("SNMP") || config.datasetName.equals("CAIDA") && !config.readFromDisk)) {
+//            config.fileStartCondition = conditions[conditionIndex];
+//            if (!config.readFromDisk) {
+//                readRealDataset(conditionIndex);
+//            }
+//        } else {
             sizeFactor = Double.parseDouble(config.sizeFactorOptions[conditionIndex]);
             cd.initToNull();
             System.gc();
             System.out.println("Running with size factor " + sizeFactor);
-        }
+//        }
         readDataset(perc, sizeFactor, noiseSize, zipfAlpha);
     }
     //double[] betas = new double[]{1,1.35,2.1,4.2,11};
@@ -404,13 +409,18 @@ public class RunExperiments {
                 cd.tpcDS(perc, (int) sizeFactor);
             }
             case "SNMP" -> {
-                if (d.size == 0) {
-                    // clean dataset
-                    cd.datasetReaderName = d.datasetReaderName;
-                    cd.readSNMP();
+                if (config.readFromDisk) {
+                    cd.snmp(perc, (int) sizeFactor);
                 } else {
                     cd.cleanDataset(d, perc, noiseSize);
                 }
+//                if (d.size == 0) {
+//                    // clean dataset
+//                    cd.datasetReaderName = d.datasetReaderName;
+//                    cd.readSNMP();
+//                } else {
+//                    cd.cleanDataset(d, perc, noiseSize);
+//                }
             }
             case "CAIDA" -> {
                 if (config.readFromDisk) {
@@ -733,9 +743,13 @@ public class RunExperiments {
 //                for (int i = 0; i < values.length -1; i++) {
 //                    record[i] = Long.parseLong(values[i]);
 //                }
-                for (int i = 0; i < record.length; i++) {
-                    record[i] = Long.parseLong(values[i]);
+                record[0] = Long.parseLong(values[0]);
+                for (int i = 0; i < config.numStoredAttributes; i++) {
+                    record[i+1] = Long.parseLong(values[cd.cleanIds[i]]);
                 }
+//                for (int i = 0; i < record.length; i++) {
+//                    record[i] = Long.parseLong(values[i]);
+//                }
                 int sign = Integer.parseInt(values[values.length - 1]);
 
                 if (sign == 1) {

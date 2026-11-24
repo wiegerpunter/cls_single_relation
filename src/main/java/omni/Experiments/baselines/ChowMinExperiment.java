@@ -20,7 +20,7 @@ public class ChowMinExperiment implements Experiment {
         int d = config.d;
 
         double[][] estimatedMIs = estimateMIs(runExperiments, config, ram, widthMap, d);
-        ChowMinAllPairs cm = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, false);
+        ChowMinAllPairs cm = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, false, config.seed);
         cm.setMIs(estimatedMIs, true);
 
         cm.printParams();
@@ -31,7 +31,7 @@ public class ChowMinExperiment implements Experiment {
 
     public static double[][] estimateMIs(RunExperiments runExperiments, Config config, long ram, HashMap<Integer, Integer> widthMap, int d) {
 
-        ChowMinAllPairs ChowLiuMinAllPairs = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, false);
+        ChowMinAllPairs ChowLiuMinAllPairs = new ChowMinAllPairs(ram, config.numStoredAttributes, widthMap, d, false, config.seed);
         long time_passed = runExperiments.ingestData(ChowLiuMinAllPairs);
         return ChowLiuMinAllPairs.estimateMIs();
     }
